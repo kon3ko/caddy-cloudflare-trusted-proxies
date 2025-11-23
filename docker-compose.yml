@@ -1,0 +1,32 @@
+services:
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    volumes:
+      - caddy-admin-sock:/run  # for accessing Caddy's admin socket without exposing it
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/trusted_proxies:/etc/caddy/trusted_proxies:ro
+      - ./caddy/config:/config
+      - ./caddy/ssl:/data/caddy/ssl:ro
+
+  cf-trusted-proxies:
+    image: alpine:3
+    container_name: cf-trusted-proxies
+    restart: unless-stopped
+    volumes:
+      - caddy-admin-sock:/run
+      - ./scripts/update_cf_ips.sh:/scripts/update_cf_ips.sh:ro
+      - ./caddy/trusted_proxies:/out/trusted_proxies
+      - ./caddy/Caddyfile:/watch/Caddyfile:ro
+    command: >
+      sh -c "
+        apk add --no-cache curl sipcalc caddy; # install dependencies for the update script without create Dockerfile
+        /scripts/update_cf_ips.sh; # run once at startup
+        while true; do sleep 1800; /scripts/update_cf_ips.sh; done # update every 30 minutes
+      "
+
+volumes:
+  caddy-admin-sock: { }

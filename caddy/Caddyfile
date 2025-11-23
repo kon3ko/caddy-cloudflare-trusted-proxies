@@ -1,0 +1,41 @@
+{
+    # Global options block
+	# Define admin endpoint
+	admin unix//run/caddy-admin.sock
+
+	# Enable automatic HTTPS with disabled certificate management (because we are using cloudflare SSL)
+	auto_https disable_certs
+
+	# Define trusted proxies for correct client IP detection behind Cloudflare
+	servers {
+		import /etc/caddy/trusted_proxies/cloudflare
+	    client_ip_headers CF-Connecting-IP X-Forwarded-For
+	}
+}
+
+whoami.domain.com {
+    # Encode responses
+    encode
+
+    # Remove unnecessary headers
+    header {
+        -Server
+        -Via
+        -X-Powered-By
+    }
+
+#    # Use TLS with client authentication for Cloudflare Origin Pulls
+#    tls /data/caddy/ssl/cert.pem /data/caddy/ssl/key.pem {
+#        client_auth {
+#            # Cloudflare Origin Pull CA (This certificate is not the same as the Cloudflare origin CA certificate)
+#            trust_pool file {
+#                pem_file /data/caddy/ssl/authenticated_origin_pull_ca.pem
+#            }
+#
+#            # Require and verify client certificates
+#            mode require_and_verify
+#        }
+#    }
+
+    respond "remote: {remote}  client: {client_ip}  xff: {header.X-Forwarded-For}  cf: {header.CF-Connecting-IP}"
+}
